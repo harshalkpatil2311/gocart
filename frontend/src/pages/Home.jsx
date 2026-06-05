@@ -1,197 +1,337 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
+import FilterSidebar from "../components/FilterSidebar";
+import CategorySection from "../components/CategorySection";
+import MobileFilterDrawer from "../components/MobileFilterDrawer";
 
-const categoryCards = [
-  { name: "Mobiles", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80" },
-  { name: "Electronics", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80" },
-  { name: "Fashion", image: "https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=800&q=80" },
-  { name: "Grocery", image: "https://images.unsplash.com/photo-1505577058444-a3dab7d73fc8?auto=format&fit=crop&w=800&q=80" },
-  { name: "Furniture", image: "https://images.unsplash.com/photo-1493666438817-866a91353ca9?auto=format&fit=crop&w=800&q=80" },
-  { name: "Beauty", image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=800&q=80" },
-  { name: "Appliances", image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80" },
+const OFFERS = [
+  { id: 1, cls: "bg-gradient-to-r from-blue-600 to-indigo-600", icon: "⚡", title: "Flash Deals", sub: "Up to 70% off today only" },
+  { id: 2, cls: "bg-gradient-to-r from-accent-600 to-fuchsia-600", icon: "🎁", title: "New Arrivals", sub: "Just dropped — shop fresh" },
+  { id: 3, cls: "bg-gradient-to-r from-orange-500 to-red-500", icon: "🔥", title: "Clearance Sale", sub: "Last chance prices" },
 ];
 
-function Home({ products, loading, error, searchQuery, selectedCategory, onSearchChange, onCategoryChange, onResetFilters, onAddToCart, wishlist, onToggleWishlist, recentlyViewed }) {
-  const [sortOption, setSortOption] = useState("featured");
-  const [priceRange, setPriceRange] = useState("all");
+const TRUST = [
+  { icon: "🚚", title: "Free Delivery", desc: "On orders above ₹499" },
+  { icon: "🔄", title: "Easy Returns", desc: "10-day hassle-free returns" },
+  { icon: "🔒", title: "Secure Payment", desc: "100% safe & encrypted" },
+  { icon: "🏆", title: "Top Brands", desc: "Genuine certified products" },
+];
+
+function Home({
+  products,
+  loading,
+  error,
+  searchQuery,
+  selectedCategory,
+  onSearchChange, // Only used to pass down if needed, but search is global now
+  onCategoryChange,
+  onResetFilters,
+  onAddToCart,
+  wishlist,
+  onToggleWishlist,
+  recentlyViewed,
+}) {
+  const navigate = useNavigate();
+  const [sortOption, setSortOption]     = useState("featured");
+  const [priceRange, setPriceRange]     = useState("all");
   const [ratingFilter, setRatingFilter] = useState("all");
   const [sellerFilter, setSellerFilter] = useState("All");
+  
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const uniqueSellers = useMemo(() => ["All", ...new Set(products.map((item) => item.seller))], [products]);
+  const uniqueSellers = useMemo(
+    () => ["All", ...new Set(products.map((p) => p.seller))],
+    [products]
+  );
 
   const filteredProducts = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-
+    const q = searchQuery.trim().toLowerCase();
     return products
-      .filter((product) => selectedCategory === "All" || product.category === selectedCategory)
-      .filter((product) => (sellerFilter === "All" ? true : product.seller === sellerFilter))
-      .filter((product) => {
-        if (priceRange === "all") return true;
-        if (priceRange === "budget") return product.price < 5000;
-        if (priceRange === "mid") return product.price >= 5000 && product.price < 20000;
-        if (priceRange === "premium") return product.price >= 20000;
+      .filter((p) => selectedCategory === "All" || p.category === selectedCategory)
+      .filter((p) => sellerFilter === "All" || p.seller === sellerFilter)
+      .filter((p) => {
+        if (priceRange === "all")     return true;
+        if (priceRange === "budget")  return p.price < 5000;
+        if (priceRange === "mid")     return p.price >= 5000 && p.price < 20000;
+        if (priceRange === "premium") return p.price >= 20000;
         return true;
       })
-      .filter((product) => (ratingFilter === "all" ? true : product.rating >= Number(ratingFilter)))
-      .filter((product) => {
-        if (!normalizedSearch) return true;
-        return (
-          product.name.toLowerCase().includes(normalizedSearch) ||
-          product.category.toLowerCase().includes(normalizedSearch) ||
-          product.seller.toLowerCase().includes(normalizedSearch)
-        );
-      })
+      .filter((p) => ratingFilter === "all" || p.rating >= Number(ratingFilter))
+      .filter((p) => !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.seller.toLowerCase().includes(q))
       .sort((a, b) => {
-        if (sortOption === "low-to-high") return a.price - b.price;
-        if (sortOption === "high-to-low") return b.price - a.price;
+        if (sortOption === "low-to-high")  return a.price - b.price;
+        if (sortOption === "high-to-low")  return b.price - a.price;
         if (sortOption === "highest-rated") return b.rating - a.rating;
         if (sortOption === "best-discount") return b.discount - a.discount;
         return a.id - b.id;
       });
   }, [products, searchQuery, selectedCategory, priceRange, ratingFilter, sellerFilter, sortOption]);
 
+  const handleOfferClick = (offerId) => {
+    onResetFilters();
+    setPriceRange("all");
+    setRatingFilter("all");
+    setSellerFilter("All");
+    
+    if (offerId === 1) setSortOption("best-discount");
+    else if (offerId === 2) setSortOption("featured");
+    else if (offerId === 3) setSortOption("low-to-high");
+    
+    setTimeout(() => {
+      document.getElementById("featured-products")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const bestSellers   = useMemo(() => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 4), [products]);
+  const topDeals      = useMemo(() => [...products].sort((a, b) => b.discount - a.discount).slice(0, 4), [products]);
+  const isFiltered    = searchQuery || selectedCategory !== "All" || priceRange !== "all" || ratingFilter !== "all" || sellerFilter !== "All";
+
   return (
-    <div className="home-page">
-      {error && <div className="status-banner status-error"><p>{error}</p></div>}
-      {loading && !error && <div className="status-banner"><p>Loading latest products from the backend...</p></div>}
+    <div className="min-h-screen bg-slate-50 py-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        
+        {error   && <div className="mb-8 rounded-md bg-red-50 p-4 text-red-700 ring-1 ring-inset ring-red-600/20">⚠️ {error}</div>}
+        {loading && !error && <div className="mb-8 rounded-md bg-blue-50 p-4 text-blue-700 ring-1 ring-inset ring-blue-600/20">⏳ Loading products from backend...</div>}
 
-      <section className="hero-section">
-        <div className="hero-copy">
-          <span className="eyebrow">Discover a premium shopping experience</span>
-          <h1>Discover Amazing Products</h1>
-          <p>Find top-rated products, exclusive offers, and trusted sellers all in one modern marketplace.</p>
-          <div className="hero-actions">
-            <button type="button" className="button button-primary" onClick={() => window.scrollTo({ top: 600, behavior: "smooth" })}>Shop Now</button>
-          </div>
-        </div>
-        <div className="hero-image-card">
-          <img src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1000&q=80" alt="GoCart hero" />
-        </div>
-      </section>
+        {/* ── Hero ──────────────────────────────────────── */}
+        {!isFiltered && (
+          <section className="mb-12 overflow-hidden rounded-2xl bg-slate-900 text-white shadow-xl lg:flex lg:h-[480px]">
+            <div className="flex flex-1 flex-col justify-center p-8 lg:p-16">
+              <span className="mb-4 inline-block w-fit rounded-full bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-300">🛍️ India's #1 Smart Marketplace</span>
+              <h1 className="mb-6 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+                Shop <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-accent-400">Smarter,</span><br />Save Bigger
+              </h1>
+              <p className="mb-8 max-w-lg text-lg text-slate-300">
+                Discover thousands of products across top categories — from the latest mobiles to everyday essentials. Best prices, genuine products, fast delivery.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary-500 px-8 py-3.5 font-bold text-white shadow-sm transition-colors hover:bg-primary-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                  onClick={() => document.getElementById("featured-products")?.scrollIntoView({ behavior: "smooth" })}
+                >
+                  🛒 Shop Now
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-700 bg-slate-800 px-8 py-3.5 font-bold text-white transition-colors hover:bg-slate-700"
+                  onClick={() => navigate("/seller")}
+                >
+                  🏪 Sell on GoCart
+                </button>
+              </div>
+            </div>
 
-      <section className="category-section">
-        <div className="section-header">
-          <div>
-            <h2>Shop by category</h2>
-            <p>Browse top categories for a modern marketplace experience.</p>
-          </div>
-        </div>
-        <div className="category-scroll">
-          {categoryCards.map((item) => (
-            <button key={item.name} type="button" className={`category-card ${selectedCategory === item.name ? "active-category" : ""}`} onClick={() => onCategoryChange(item.name)}>
-              <div className="category-image"><img src={item.image} alt={item.name} /></div>
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </div>
-      </section>
+            <div className="relative hidden flex-1 lg:block">
+              <img 
+                src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=900&q=80" 
+                alt="Shopping" 
+                className="absolute inset-0 h-full w-full object-cover opacity-80"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-900 to-transparent"></div>
+            </div>
+          </section>
+        )}
 
-      <section className="marketplace-section">
-        <aside className="filter-sidebar">
-          <div className="filter-card">
-            <h3>Search</h3>
-            <input type="search" placeholder="Search products, categories, sellers..." value={searchQuery} onChange={(e) => onSearchChange(e.target.value)} />
-          </div>
-          <div className="filter-card">
-            <h3>Category</h3>
-            <div className="category-options">
-              <button type="button" className={selectedCategory === "All" ? "filter-pill active-pill" : "filter-pill"} onClick={() => onCategoryChange("All")}>All</button>
-              {categoryCards.map((item) => (
-                <button key={item.name} type="button" className={selectedCategory === item.name ? "filter-pill active-pill" : "filter-pill"} onClick={() => onCategoryChange(item.name)}>{item.name}</button>
+        {/* ── Offer Banners ─────────────────────────────── */}
+        {!isFiltered && (
+          <section className="mb-12">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {OFFERS.map((o) => (
+                <div 
+                  key={o.id} 
+                  className={`flex cursor-pointer items-center gap-4 rounded-xl p-6 text-white shadow-md transition-transform hover:-translate-y-1 hover:shadow-lg ${o.cls}`}
+                  onClick={() => handleOfferClick(o.id)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <span className="text-4xl">{o.icon}</span>
+                  <div>
+                    <h3 className="text-xl font-bold">{o.title}</h3>
+                    <p className="text-sm font-medium opacity-90">{o.sub}</p>
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-          <div className="filter-card">
-            <h3>Price range</h3>
-            <select value={priceRange} onChange={(e) => setPriceRange(e.target.value)}>
-              <option value="all">All prices</option>
-              <option value="budget">Under ₹5,000</option>
-              <option value="mid">₹5,000 - ₹20,000</option>
-              <option value="premium">₹20,000+</option>
-            </select>
-          </div>
-          <div className="filter-card">
-            <h3>Ratings</h3>
-            <select value={ratingFilter} onChange={(e) => setRatingFilter(e.target.value)}>
-              <option value="all">All ratings</option>
-              <option value="4">4 stars & up</option>
-              <option value="3">3 stars & up</option>
-              <option value="2">2 stars & up</option>
-            </select>
-          </div>
-          <div className="filter-card">
-            <h3>Seller</h3>
-            <select value={sellerFilter} onChange={(e) => setSellerFilter(e.target.value)}>
-              {uniqueSellers.map((seller) => (
-                <option key={seller} value={seller}>{seller}</option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-card">
-            <button type="button" className="button button-secondary" onClick={() => { onResetFilters(); setPriceRange("all"); setRatingFilter("all"); setSellerFilter("All"); setSortOption("featured"); }}>Clear all filters</button>
-          </div>
-        </aside>
+          </section>
+        )}
 
-        <div className="marketplace-main">
-          <div className="marketplace-header">
-            <div>
-              <h2>Featured products</h2>
-              <p>All the latest deals in one place.</p>
+        {/* ── Best Sellers strip ────────────────────────── */}
+        {!isFiltered && bestSellers.length > 0 && (
+          <section className="mb-12">
+            <div className="mb-6 flex items-end justify-between">
+              <div>
+                <span className="text-sm font-bold uppercase tracking-wider text-accent-600">Most Popular</span>
+                <h2 className="text-3xl font-black text-slate-900">🏆 Best Sellers</h2>
+              </div>
             </div>
-            <div className="category-summary">
-              <span>{filteredProducts.length} products</span>
-              <span>Category: {selectedCategory}</span>
-              <span>Seller: {sellerFilter}</span>
-            </div>
-          </div>
-
-          <div className="sort-bar">
-            <span>Sort by:</span>
-            <select value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
-              <option value="featured">Featured</option>
-              <option value="low-to-high">Price Low to High</option>
-              <option value="high-to-low">Price High to Low</option>
-              <option value="highest-rated">Highest Rated</option>
-              <option value="best-discount">Best Discount</option>
-            </select>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="empty-state">
-              <h3>No products match your filters</h3>
-              <p>Try broadening your search or changing the category selection.</p>
-            </div>
-          ) : (
-            <div className="product-grid" id="featured-products">
-              {filteredProducts.map((product) => (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {bestSellers.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   onAddToCart={() => onAddToCart(product)}
                   onToggleWishlist={() => onToggleWishlist(product)}
-                  isWishlisted={wishlist.some((item) => item.id === product.id)}
+                  isWishlisted={wishlist.some((i) => i.id === product.id)}
                 />
               ))}
             </div>
-          )}
+          </section>
+        )}
 
-          {recentlyViewed.length > 0 && (
-            <section className="recently-viewed-section">
-              <div className="section-header">
-                <div>
-                  <h2>Recently viewed</h2>
-                  <p>Items you opened recently.</p>
+        {/* ── Marketplace Layout (Sidebar + Grid) ──────────── */}
+        <section id="featured-products">
+          <div className="mb-6 flex items-end justify-between">
+            <div>
+              <h2 className="text-3xl font-black text-slate-900">
+                {selectedCategory === "All" ? "Explore Marketplace" : selectedCategory}
+              </h2>
+              <p className="mt-1 text-slate-600">
+                {isFiltered
+                  ? `${filteredProducts.length} result${filteredProducts.length !== 1 ? "s" : ""} found`
+                  : "Discover everything in one place"}
+              </p>
+            </div>
+          </div>
+
+          {/* Category Strip (Horizontal) */}
+          <CategorySection 
+            selectedCategory={selectedCategory} 
+            onCategoryChange={onCategoryChange} 
+          />
+
+          <div className="flex flex-col lg:flex-row lg:gap-8">
+            {/* Desktop Sidebar */}
+            <FilterSidebar 
+              categories={["All"]} // Not used here as we have CategorySection, but passing for prop safety
+              selectedCategory={selectedCategory}
+              onCategoryChange={onCategoryChange}
+              priceRange={priceRange}
+              onPriceChange={setPriceRange}
+              ratingFilter={ratingFilter}
+              onRatingChange={setRatingFilter}
+              uniqueSellers={uniqueSellers}
+              sellerFilter={sellerFilter}
+              onSellerChange={setSellerFilter}
+              onResetFilters={() => {
+                onResetFilters();
+                setPriceRange("all");
+                setRatingFilter("all");
+                setSellerFilter("All");
+                setSortOption("featured");
+              }}
+            />
+
+            {/* Mobile Filter Drawer */}
+            <MobileFilterDrawer 
+              isOpen={mobileFiltersOpen}
+              onClose={() => setMobileFiltersOpen(false)}
+              categories={["All"]} 
+              selectedCategory={selectedCategory}
+              onCategoryChange={onCategoryChange}
+              priceRange={priceRange}
+              onPriceChange={setPriceRange}
+              ratingFilter={ratingFilter}
+              onRatingChange={setRatingFilter}
+              uniqueSellers={uniqueSellers}
+              sellerFilter={sellerFilter}
+              onSellerChange={setSellerFilter}
+              onResetFilters={() => {
+                onResetFilters();
+                setPriceRange("all");
+                setRatingFilter("all");
+                setSellerFilter("All");
+                setSortOption("featured");
+              }}
+            />
+
+            {/* Products main area */}
+            <div className="flex-1">
+              
+              {/* Sort Bar & Mobile Filter Trigger */}
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <button 
+                  onClick={() => setMobileFiltersOpen(true)}
+                  className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 lg:hidden"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+                  </svg>
+                  Filters
+                </button>
+
+                <div className="flex items-center gap-3 ml-auto">
+                  <span className="text-sm font-medium text-slate-500">Sort by:</span>
+                  <select 
+                    value={sortOption} 
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="rounded-md border-0 bg-slate-50 py-2 pl-3 pr-8 text-sm font-medium text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-primary-600"
+                  >
+                    <option value="featured">Featured</option>
+                    <option value="low-to-high">Price: Low to High</option>
+                    <option value="high-to-low">Price: High to Low</option>
+                    <option value="highest-rated">Highest Rated</option>
+                    <option value="best-discount">Best Discount</option>
+                  </select>
                 </div>
               </div>
-              <div className="product-grid">
-                {recentlyViewed.map((product) => (
-                  <ProductCard key={product.id} product={product} onAddToCart={() => onAddToCart(product)} onToggleWishlist={() => onToggleWishlist(product)} isWishlisted={wishlist.some((item) => item.id === product.id)} />
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      </section>
+
+              {/* Loading skeleton */}
+              {loading && (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                    <div key={n} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="aspect-square w-full animate-pulse rounded-lg bg-slate-200"></div>
+                      <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200"></div>
+                      <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200"></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!loading && filteredProducts.length === 0 && (
+                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 py-16 text-center">
+                  <div className="mb-4 text-6xl">🔍</div>
+                  <h3 className="mb-2 text-xl font-bold text-slate-900">No products found</h3>
+                  <p className="mb-6 max-w-md text-slate-600">Try adjusting your search or filters to find what you're looking for.</p>
+                  <button
+                    type="button"
+                    className="rounded-md bg-primary-600 px-6 py-2.5 font-bold text-white hover:bg-primary-500"
+                    onClick={() => {
+                      onResetFilters();
+                      setPriceRange("all");
+                      setRatingFilter("all");
+                      setSellerFilter("All");
+                      setSortOption("featured");
+                    }}
+                  >
+                    Clear All Filters
+                  </button>
+                </div>
+              )}
+
+              {/* Product grid */}
+              {!loading && filteredProducts.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onAddToCart={() => onAddToCart(product)}
+                      onToggleWishlist={() => onToggleWishlist(product)}
+                      isWishlisted={wishlist.some((i) => i.id === product.id)}
+                    />
+                  ))}
+                </div>
+              )}
+
+            </div>
+          </div>
+        </section>
+
+      </div>
     </div>
   );
 }

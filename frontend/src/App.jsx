@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
+import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import ProductDetail from "./pages/ProductDetail";
@@ -11,6 +11,30 @@ import Seller from "./pages/Seller";
 import Cart from "./pages/Cart";
 import Wishlist from "./pages/Wishlist";
 import { API_BASE_URL } from "./api/config";
+
+// --- Toast Component ---
+function ToastContainer({ toasts }) {
+  return (
+    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+      {toasts.map((t) => (
+        <div 
+          key={t.id} 
+          className={`flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg ring-1 ring-black/5 animate-in slide-in-from-right duration-300 ${
+            t.type === "success" ? "bg-success-50 text-success-700" : 
+            t.type === "error" ? "bg-red-50 text-red-700" : 
+            t.type === "warning" ? "bg-warning-50 text-warning-700" : 
+            "bg-slate-800 text-white"
+          }`}
+        >
+          <span className="text-lg">
+            {t.type === "success" ? "✅" : t.type === "error" ? "❌" : t.type === "warning" ? "⚠️" : "ℹ️"}
+          </span>
+          <span className="text-sm font-semibold">{t.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function App() {
   const [cart, setCart] = useState([]);
@@ -22,10 +46,20 @@ function App() {
   const [categories, setCategories] = useState(["All"]);
   const [loading, setLoading] = useState(false);
   const [backendError, setBackendError] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem("gocartUser") || sessionStorage.getItem("gocartUser");
     return storedUser ? JSON.parse(storedUser) : null;
   });
+
+  const showToast = useCallback((message, type = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -75,19 +109,16 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
+    showToast(`Welcome back, ${userData.name}!`, "success");
   };
 
   const handleLogout = () => {
     setUser(null);
+    showToast("You have been logged out.", "info");
   };
 
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-  };
-
-  const handleCategoryChange = (value) => {
-    setSelectedCategory(value);
-  };
+  const handleSearchChange = (value) => setSearchQuery(value);
+  const handleCategoryChange = (value) => setSelectedCategory(value);
 
   const handleResetFilters = () => {
     setSearchQuery("");
@@ -103,16 +134,17 @@ function App() {
   const handleAddToCart = (product) => {
     const alreadyInCart = cart.some((item) => item.id === product.id);
     if (alreadyInCart) {
-      alert("Product already exists in cart");
+      showToast(`${product.name} is already in your cart`, "warning");
       return;
     }
 
     setCart((prev) => [...prev, { ...product, quantity: 1 }]);
-    alert("Added to Cart");
+    showToast(`${product.name} added to cart`, "success");
   };
 
   const handleRemoveFromCart = (productId) => {
     setCart((prev) => prev.filter((item) => item.id !== productId));
+    showToast("Item removed from cart", "info");
   };
 
   const handleUpdateQuantity = (productId, delta) => {
@@ -129,8 +161,10 @@ function App() {
     setWishlist((prev) => {
       const exists = prev.some((item) => item.id === product.id);
       if (exists) {
+        showToast(`${product.name} removed from wishlist`, "info");
         return prev.filter((item) => item.id !== product.id);
       }
+      showToast(`${product.name} added to wishlist`, "success");
       return [...prev, product];
     });
   };
@@ -147,8 +181,8 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="app-shell">
-        <Navbar
+      <div className="flex min-h-screen flex-col font-sans">
+        <Header
           products={products}
           cartCount={cartCount}
           wishlistCount={wishlistCount}
@@ -162,7 +196,7 @@ function App() {
           onLogout={handleLogout}
         />
 
-        <main className="main-content">
+        <main className="flex-1 bg-slate-50">
           <Routes>
             <Route
               path="/"
@@ -203,6 +237,7 @@ function App() {
         </main>
 
         <Footer />
+        <ToastContainer toasts={toasts} />
       </div>
     </BrowserRouter>
   );

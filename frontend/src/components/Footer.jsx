@@ -1,115 +1,57 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-
 function Footer() {
-  const [hoveredSocial, setHoveredSocial] = useState(null);
-
-  const socialLinks = [
-    { name: "Instagram", icon: "📸", url: "https://instagram.com", color: "#E4405F" },
-    { name: "Facebook", icon: "f", url: "https://facebook.com", color: "#1877F2" },
-    { name: "Twitter", icon: "𝕏", url: "https://twitter.com", color: "#000000" },
-  ];
-
   return (
-    <footer className="footer-container">
-      <div className="footer-glow"></div>
-      
-      <div className="footer-content">
-        {/* Brand Section */}
-        <div className="footer-brand-section">
-          <div className="footer-brand-header">
-            <div className="footer-logo">
-              <span className="logo-badge">Go</span>
-              <div>
-                <h3 className="brand-name">GoCart</h3>
-                <p className="brand-tagline">Modern marketplace for everyone</p>
+    <footer className="bg-slate-900 text-slate-300">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+          <div className="md:col-span-1">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 font-bold text-white shadow-lg">
+                Go
               </div>
+              <span className="text-xl font-bold tracking-tight text-white">GoCart</span>
+            </div>
+            <p className="mb-6 text-sm">
+              India's #1 Smart Marketplace for electronics, fashion, and daily needs.
+            </p>
+            <div className="flex gap-4">
+              <button className="text-slate-400 hover:text-white" aria-label="Facebook">📱</button>
+              <button className="text-slate-400 hover:text-white" aria-label="Twitter">🐦</button>
+              <button className="text-slate-400 hover:text-white" aria-label="Instagram">📸</button>
             </div>
           </div>
           
-          <p className="brand-description">
-            The modern marketplace built for fast shopping and smart discovery. Shop smarter, save more.
-          </p>
-
-          {/* Statistics Cards */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon">📦</div>
-              <div className="stat-content">
-                <span className="stat-number">100k+</span>
-                <span className="stat-label">Products</span>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">🏪</div>
-              <div className="stat-content">
-                <span className="stat-number">50k+</span>
-                <span className="stat-label">Sellers</span>
-              </div>
-            </div>
+          <div>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-white">Get to Know Us</h3>
+            <ul className="space-y-2 text-sm">
+              <li><button className="hover:text-primary-400">About GoCart</button></li>
+              <li><button className="hover:text-primary-400">Careers</button></li>
+              <li><button className="hover:text-primary-400">Press Releases</button></li>
+              <li><button className="hover:text-primary-400">GoCart Science</button></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-white">Connect with Us</h3>
+            <ul className="space-y-2 text-sm">
+              <li><button className="hover:text-primary-400">Facebook</button></li>
+              <li><button className="hover:text-primary-400">Twitter</button></li>
+              <li><button className="hover:text-primary-400">Instagram</button></li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-white">Make Money with Us</h3>
+            <ul className="space-y-2 text-sm">
+              <li><button className="hover:text-primary-400">Sell on GoCart</button></li>
+              <li><button className="hover:text-primary-400">Protect and Build Your Brand</button></li>
+              <li><button className="hover:text-primary-400">Global Selling</button></li>
+              <li><button className="hover:text-primary-400">Become an Affiliate</button></li>
+            </ul>
           </div>
         </div>
-
-        {/* Company Section */}
-        <div className="footer-section">
-          <h4 className="footer-section-title">Company</h4>
-          <ul className="footer-links">
-            <li><a href="#about" className="footer-link">About us</a></li>
-            <li><a href="#careers" className="footer-link">Careers</a></li>
-            <li><a href="#press" className="footer-link">Press</a></li>
-          </ul>
-        </div>
-
-        {/* Support Section */}
-        <div className="footer-section">
-          <h4 className="footer-section-title">Support</h4>
-          <ul className="footer-links">
-            <li><a href="#help" className="footer-link">Help center</a></li>
-            <li><Link to="/contact" className="footer-link">Contact us</Link></li>
-            <li><a href="#privacy" className="footer-link">Privacy Policy</a></li>
-          </ul>
-        </div>
-
-        {/* Social Section */}
-        <div className="footer-section">
-          <h4 className="footer-section-title">Follow Us</h4>
-          <div className="social-icons-container">
-            {socialLinks.map((social) => (
-              <a
-                key={social.name}
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="social-icon-btn"
-                title={social.name}
-                onMouseEnter={() => setHoveredSocial(social.name)}
-                onMouseLeave={() => setHoveredSocial(null)}
-                aria-label={`Follow us on ${social.name}`}
-              >
-                <span className="social-icon-inner">{social.icon}</span>
-                {hoveredSocial === social.name && <span className="social-tooltip">{social.name}</span>}
-              </a>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="footer-divider-line"></div>
-
-      {/* Bottom Section */}
-      <div className="footer-bottom">
-        <div className="footer-bottom-left">
-          <p className="footer-copyright">
-            © {new Date().getFullYear()} GoCart. Built for a better shopping experience.
-          </p>
-        </div>
-        <div className="footer-bottom-right">
-          <a href="#terms" className="footer-bottom-link">Terms of Service</a>
-          <span className="footer-divider-dot">•</span>
-          <a href="#privacy" className="footer-bottom-link">Privacy Policy</a>
-          <span className="footer-divider-dot">•</span>
-          <a href="#cookies" className="footer-bottom-link">Cookie Settings</a>
+        
+        <div className="mt-12 border-t border-slate-800 pt-8 text-center text-sm">
+          <p>© 2026 GoCart Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>

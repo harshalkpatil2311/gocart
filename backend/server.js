@@ -1,217 +1,380 @@
-import express from "express";
-import cors from "cors";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+/**
+ * server.js — GoCart Backend
+ * ============================================================
+ * ✅ MOCK DATA MODE  — No database connection whatsoever.
+ * ✅ All data lives in ./data/*.js files (in-memory).
+ * ✅ Plain-text password comparison (mock/dev mode only).
+ * ✅ Data resets on server restart (by design).
+ * ✅ No bcrypt, No MongoDB, No MySQL, No Prisma, No Sequelize.
+ *
+ *   PORT      : 4000  (override with PORT env var)
+ *   CORS      : http://localhost:5173
+ *   Auth      : JWT (8h expiry)
+ * ============================================================
+ */
 
+import express from "express";
+import cors    from "cors";
+import jwt     from "jsonwebtoken";
+import dotenv  from "dotenv";
+
+// ── Mock data ─────────────────────────────────────────────────
+import { mockUsers, bumpUserId }                               from "./data/mockUsers.js";
+import { mockProducts }                                        from "./data/mockProducts.js";
+import { getCart, upsertCartItem, removeCartItem, clearCart }  from "./data/mockCart.js";
+import { getOrdersByUser, placeOrder }                         from "./data/mockOrders.js";
+
+// ── Config ────────────────────────────────────────────────────
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET || "gocart-secret";
+const app        = express();
+const PORT       = process.env.PORT       || 4000;
+const JWT_SECRET = process.env.JWT_SECRET || "gocart-mock-secret-key";
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
+// ── Middleware ────────────────────────────────────────────────
+app.use(cors({
+  origin: [
+    process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+  ],
+  credentials: true,
+}));
 app.use(express.json());
 
-const users = [
-  {
-    id: 1,
-    name: "Harsh",
-    email: "user@gocart.com",
-    password: "123456",
-  },
-];
+// ── Utility helpers ───────────────────────────────────────────
 
-const products = [
-  {
-    id: 1,
-    name: "Smartphone Pro X",
-    category: "Mobiles",
-    brand: "Nimbus",
-    price: 79999,
-    oldPrice: 84999,
-    discount: 6,
-    rating: 4.9,
-    reviews: 1420,
-    stock: 12,
-    freeDelivery: true,
-    deliveryEstimate: "Delivered by Thu, Jun 6",
-    badges: ["Best Seller"],
-    description: "Flagship performance with an edge-to-edge display, fast charging, and premium camera capabilities.",
-    seller: "GoCart Store",
-    image: "https://images.unsplash.com/photo-1510552776732-03e61cf4b144?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 2,
-    name: "Wireless Noise Cancelling Headphones",
-    category: "Electronics",
-    brand: "SoundWave",
-    price: 22999,
-    oldPrice: 26999,
-    discount: 15,
-    rating: 4.8,
-    reviews: 860,
-    stock: 8,
-    freeDelivery: true,
-    deliveryEstimate: "Delivered by Fri, Jun 7",
-    badges: ["Limited Stock"],
-    description: "Premium audio with adaptive noise cancellation and long battery life for travel and work.",
-    seller: "SoundWave",
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 3,
-    name: "Everyday Fitness Watch",
-    category: "Fashion",
-    brand: "HealthTech",
-    price: 3299,
-    oldPrice: 4299,
-    discount: 23,
-    rating: 4.5,
-    reviews: 430,
-    stock: 18,
-    freeDelivery: false,
-    deliveryEstimate: "Delivered by Wed, Jun 5",
-    badges: ["Hot Pick"],
-    description: "Lightweight tracking for heart rate, steps, and sleep quality with a sleek all-day design.",
-    seller: "HealthTech",
-    image: "https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 4,
-    name: "Home Espresso Machine",
-    category: "Appliances",
-    brand: "BrewHouse",
-    price: 34999,
-    oldPrice: 41999,
-    discount: 17,
-    rating: 4.7,
-    reviews: 920,
-    stock: 5,
-    freeDelivery: true,
-    deliveryEstimate: "Delivered by Mon, Jun 10",
-    badges: ["Free Shipping"],
-    description: "Barista-style espresso in one compact countertop design with easy-to-use controls.",
-    seller: "BrewHouse",
-    image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 5,
-    name: "Designer Backpack",
-    category: "Fashion",
-    brand: "UrbanGear",
-    price: 6599,
-    oldPrice: 7899,
-    discount: 17,
-    rating: 4.4,
-    reviews: 120,
-    stock: 15,
-    freeDelivery: false,
-    deliveryEstimate: "Delivered by Thu, Jun 6",
-    badges: ["Limited Edition"],
-    description: "Durable, stylish carry-all with multiple travel-friendly compartments for daily use.",
-    seller: "UrbanGear",
-    image: "https://images.unsplash.com/photo-1493666438817-866a91353ca9?auto=format&fit=crop&w=600&q=80",
-  },
-  {
-    id: 6,
-    name: "Smart Home Speaker",
-    category: "Electronics",
-    brand: "HomeLink",
-    price: 14999,
-    oldPrice: 17999,
-    discount: 17,
-    rating: 4.6,
-    reviews: 540,
-    stock: 22,
-    freeDelivery: true,
-    deliveryEstimate: "Delivered by Wed, Jun 5",
-    badges: ["Best Value"],
-    description: "Voice-enabled speaker with premium sound and home automation support for every room.",
-    seller: "HomeLink",
-    image: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=600&q=80",
-  },
-];
-
-function createToken(user) {
-  return jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, {
-    expiresIn: "8h",
-  });
+/** Sign a JWT containing safe user claims (no password). */
+function signToken(user) {
+  return jwt.sign(
+    { id: user.id, email: user.email, name: user.name, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "8h" }
+  );
 }
 
-function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing auth token" });
+/** Strip sensitive fields before sending to client. */
+function publicUser(user) {
+  const { password, ...safe } = user;
+  return safe;
+}
+
+/** JWT auth middleware — attaches decoded payload to req.user. */
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, error: "Missing or invalid auth token." });
   }
-
-  const token = authHeader.split(" ")[1];
-
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    req.user = jwt.verify(header.slice(7), JWT_SECRET);
     next();
-  } catch (error) {
-    return res.status(401).json({ error: "Invalid or expired token" });
+  } catch {
+    return res.status(401).json({ success: false, error: "Token expired or invalid. Please log in again." });
   }
 }
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "GoCart backend is running" });
+// ═══════════════════════════════════════════════════════════════
+// HEALTH CHECK
+// ═══════════════════════════════════════════════════════════════
+
+app.get("/api/health", (_req, res) => {
+  res.json({
+    success:  true,
+    status:   "ok",
+    message:  "GoCart API is running — Mock Data Mode",
+    mode:     "mock",
+    database: "disabled",
+    port:     PORT,
+    time:     new Date().toISOString(),
+  });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// AUTH  →  /api/auth/*
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/auth/login
+ * Body : { email, password }
+ * Returns: { success: true, token, user }
+ */
 app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body;
-  const user = users.find((item) => item.email === email && item.password === password);
+  const { email = "", password = "" } = req.body ?? {};
+
+  // ── Basic validation ─────────────────────────────────────────
+  if (!email.trim() || !password.trim()) {
+    return res.status(400).json({
+      success: false,
+      error: "Email and password are required.",
+    });
+  }
+
+  // ── Lookup user in mock store (case-insensitive email) ───────
+  const user = mockUsers.find(
+    (u) => u.email.toLowerCase() === email.toLowerCase().trim()
+  );
 
   if (!user) {
-    return res.status(401).json({ error: "Invalid email or password" });
+    return res.status(401).json({
+      success: false,
+      error: "No account found with that email address.",
+    });
   }
 
-  const token = createToken(user);
+  // ── Plain-text password comparison (mock dev mode) ───────────
+  if (user.password !== password.trim()) {
+    return res.status(401).json({
+      success: false,
+      error: "Incorrect password. Please try again.",
+    });
+  }
 
-  res.json({
-    user: { id: user.id, name: user.name, email: user.email },
+  // ── Success ──────────────────────────────────────────────────
+  const token = signToken(user);
+
+  console.log(`[Auth] ✅ Login success → ${user.email} (${user.role})`);
+
+  return res.status(200).json({
+    success: true,
     token,
+    user: publicUser(user),
   });
 });
 
-app.get("/api/auth/profile", authenticate, (req, res) => {
-  res.json({ user: req.user });
-});
+/**
+ * POST /api/auth/register
+ * Body : { name, email, password }
+ * Returns: { success: true, token, user }
+ */
+app.post("/api/auth/register", (req, res) => {
+  const { name = "", email = "", password = "" } = req.body ?? {};
 
-app.get("/api/products", (req, res) => {
-  const { category = "", search = "" } = req.query;
-  const lowerSearch = String(search).toLowerCase();
-
-  const filtered = products.filter((product) => {
-    const matchesCategory = !category || category === "All" || product.category === category;
-    const matchesSearch =
-      !lowerSearch ||
-      product.name.toLowerCase().includes(lowerSearch) ||
-      product.category.toLowerCase().includes(lowerSearch) ||
-      product.seller.toLowerCase().includes(lowerSearch);
-    return matchesCategory && matchesSearch;
-  });
-
-  res.json({ products: filtered, total: filtered.length });
-});
-
-app.get("/api/products/:id", (req, res) => {
-  const product = products.find((item) => item.id === Number(req.params.id));
-  if (!product) {
-    return res.status(404).json({ error: "Product not found" });
+  if (!name.trim() || !email.trim() || !password.trim()) {
+    return res.status(400).json({ success: false, error: "Name, email, and password are all required." });
   }
-  res.json({ product });
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ success: false, error: "Please enter a valid email address." });
+  }
+
+  if (password.trim().length < 6) {
+    return res.status(400).json({ success: false, error: "Password must be at least 6 characters." });
+  }
+
+  const exists = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
+  if (exists) {
+    return res.status(409).json({ success: false, error: "An account with this email already exists. Please log in." });
+  }
+
+  const newUser = {
+    id:        bumpUserId(),
+    name:      name.trim(),
+    email:     email.toLowerCase().trim(),
+    password:  password.trim(),     // plain-text in mock mode
+    role:      "customer",
+    avatar:    null,
+    createdAt: new Date().toISOString(),
+  };
+  mockUsers.push(newUser);
+
+  const token = signToken(newUser);
+  console.log(`[Auth] ✅ New user registered → ${newUser.email}`);
+
+  return res.status(201).json({
+    success: true,
+    token,
+    user: publicUser(newUser),
+  });
 });
 
-app.get("/api/categories", (req, res) => {
-  const categories = Array.from(new Set(products.map((product) => product.category)));
-  res.json({ categories: ["All", ...categories] });
+/**
+ * GET /api/auth/profile  [protected]
+ */
+app.get("/api/auth/profile", requireAuth, (req, res) => {
+  const user = mockUsers.find((u) => u.id === req.user.id);
+  if (!user) {
+    return res.status(404).json({ success: false, error: "User not found." });
+  }
+  return res.json({ success: true, user: publicUser(user) });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUCTS  →  /api/products  |  /api/categories
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/products?category=&search=&sort=
+ */
+app.get("/api/products", (req, res) => {
+  const { category = "", search = "", sort = "" } = req.query;
+  const q = search.toLowerCase().trim();
+
+  let result = mockProducts.filter((p) => {
+    const catOk    = !category || category === "All" || p.category === category;
+    const searchOk = !q || [p.name, p.category, p.brand, p.seller].some(
+      (f) => f.toLowerCase().includes(q)
+    );
+    return catOk && searchOk;
+  });
+
+  if (sort === "price_asc")     result.sort((a, b) => a.price    - b.price);
+  if (sort === "price_desc")    result.sort((a, b) => b.price    - a.price);
+  if (sort === "rating_desc")   result.sort((a, b) => b.rating   - a.rating);
+  if (sort === "discount_desc") result.sort((a, b) => b.discount - a.discount);
+
+  return res.json({ success: true, products: result, total: result.length });
+});
+
+/**
+ * GET /api/products/:id
+ */
+app.get("/api/products/:id", (req, res) => {
+  const product = mockProducts.find((p) => p.id === Number(req.params.id));
+  if (!product) {
+    return res.status(404).json({ success: false, error: "Product not found." });
+  }
+  return res.json({ success: true, product });
+});
+
+/**
+ * GET /api/categories
+ */
+app.get("/api/categories", (_req, res) => {
+  const cats = [...new Set(mockProducts.map((p) => p.category))];
+  return res.json({ success: true, categories: ["All", ...cats] });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CART  →  /api/cart  [protected]
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/cart
+ */
+app.get("/api/cart", requireAuth, (req, res) => {
+  const items    = getCart(req.user.id);
+  const enriched = items
+    .map((item) => {
+      const p = mockProducts.find((x) => x.id === item.productId);
+      return p ? { ...p, quantity: item.quantity } : null;
+    })
+    .filter(Boolean);
+
+  const subtotal  = enriched.reduce((s, i) => s + i.price * i.quantity, 0);
+  const itemCount = enriched.reduce((s, i) => s + i.quantity, 0);
+
+  return res.json({ success: true, cart: enriched, subtotal, itemCount });
+});
+
+/**
+ * POST /api/cart
+ * Body: { productId, quantity? }
+ */
+app.post("/api/cart", requireAuth, (req, res) => {
+  const { productId, quantity = 1 } = req.body ?? {};
+
+  if (!productId) {
+    return res.status(400).json({ success: false, error: "productId is required." });
+  }
+
+  const product = mockProducts.find((p) => p.id === Number(productId));
+  if (!product) {
+    return res.status(404).json({ success: false, error: "Product not found." });
+  }
+
+  upsertCartItem(req.user.id, Number(productId), Number(quantity));
+
+  const items = getCart(req.user.id);
+  const cart  = items
+    .map((item) => {
+      const p = mockProducts.find((x) => x.id === item.productId);
+      return p ? { ...p, quantity: item.quantity } : null;
+    })
+    .filter(Boolean);
+
+  return res.json({ success: true, message: "Item added to cart.", cart });
+});
+
+/**
+ * DELETE /api/cart/:productId
+ */
+app.delete("/api/cart/:productId", requireAuth, (req, res) => {
+  removeCartItem(req.user.id, Number(req.params.productId));
+  return res.json({ success: true, message: "Item removed from cart." });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ORDERS  →  /api/orders  [protected]
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/orders
+ */
+app.get("/api/orders", requireAuth, (req, res) => {
+  const orders = getOrdersByUser(req.user.id);
+  return res.json({ success: true, orders, total: orders.length });
+});
+
+/**
+ * POST /api/orders
+ * Body: { items, total, paymentMethod, address }
+ */
+app.post("/api/orders", requireAuth, (req, res) => {
+  const { items, total, paymentMethod, address } = req.body ?? {};
+
+  if (!items?.length || !total || !paymentMethod || !address) {
+    return res.status(400).json({
+      success: false,
+      error: "items, total, paymentMethod, and address are all required.",
+    });
+  }
+
+  const order = placeOrder(req.user.id, { items, total, paymentMethod, address });
+  clearCart(req.user.id);
+
+  console.log(`[Order] ✅ New order placed → ${order.id} by user ${req.user.id}`);
+
+  return res.status(201).json({ success: true, order });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 404 — catch all unmatched routes
+// ═══════════════════════════════════════════════════════════════
 
 app.use((req, res) => {
-  res.status(404).json({ error: "Endpoint not found" });
+  res.status(404).json({
+    success: false,
+    error: `Route not found: ${req.method} ${req.path}`,
+  });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// 500 — global error handler
+// ═══════════════════════════════════════════════════════════════
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+  console.error("[Error]", err);
+  res.status(500).json({ success: false, error: "Internal server error." });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════════════
+
 app.listen(PORT, () => {
-  console.log(`GoCart backend listening on http://localhost:${PORT}`);
+  console.log("");
+  console.log("╔═══════════════════════════════════════════════╗");
+  console.log("║        GoCart Backend  — MOCK DATA MODE       ║");
+  console.log("╠═══════════════════════════════════════════════╣");
+  console.log(`║  Server running on → http://localhost:${PORT}      ║`);
+  console.log("║  Mode             → ✅ Mock Data (in-memory)  ║");
+  console.log("║  Database         → ❌ Disabled               ║");
+  console.log("╠═══════════════════════════════════════════════╣");
+  console.log("║  Test credentials:                            ║");
+  console.log("║    Email    →  test@gmail.com                 ║");
+  console.log("║    Password →  123456                         ║");
+  console.log("║    Role     →  customer                       ║");
+  console.log("╚═══════════════════════════════════════════════╝");
+  console.log("");
 });
