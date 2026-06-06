@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Header from "./components/Header";
@@ -6,11 +6,11 @@ import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import ProductDetail from "./pages/ProductDetail";
 import Login from "./pages/Login";
-import Contact from "./pages/Contact";
 import Seller from "./pages/Seller";
 import Cart from "./pages/Cart";
 import Wishlist from "./pages/Wishlist";
-import { API_BASE_URL } from "./api/config";
+import Orders from "./pages/Orders";
+import { mockProducts } from "./data/mockProducts";
 
 // --- Toast Component ---
 function ToastContainer({ toasts }) {
@@ -40,12 +40,14 @@ function App() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [priceRange, setPriceRange] = useState("all");
+  const [ratingFilter, setRatingFilter] = useState("all");
+  const [sellerFilter, setSellerFilter] = useState("All");
   const [recentlyViewed, setRecentlyViewed] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState(["All"]);
-  const [loading, setLoading] = useState(false);
-  const [backendError, setBackendError] = useState(null);
+
+  const [products] = useState(mockProducts);
+  const [loading] = useState(false);
+  const [backendError] = useState(null);
   const [toasts, setToasts] = useState([]);
 
   const [user, setUser] = useState(() => {
@@ -77,35 +79,11 @@ function App() {
     }
   }, [user]);
 
-  useEffect(() => {
-    async function loadCatalog() {
-      setLoading(true);
-      setBackendError(null);
 
-      try {
-        const [categoriesRes, productsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/categories`),
-          fetch(`${API_BASE_URL}/api/products`),
-        ]);
-
-        if (!categoriesRes.ok || !productsRes.ok) {
-          throw new Error("Unable to load marketplace data.");
-        }
-
-        const categoriesData = await categoriesRes.json();
-        const productsData = await productsRes.json();
-
-        setCategories(categoriesData.categories || ["All"]);
-        setProducts(productsData.products || []);
-      } catch (error) {
-        setBackendError(error.message || "Unable to connect to backend.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadCatalog();
-  }, []);
+  const uniqueSellers = useMemo(
+    () => ["All", ...new Set(products.map((p) => p.seller))],
+    [products]
+  );
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -118,28 +96,24 @@ function App() {
   };
 
   const handleSearchChange = (value) => setSearchQuery(value);
-  const handleCategoryChange = (value) => setSelectedCategory(value);
 
   const handleResetFilters = () => {
     setSearchQuery("");
-    setSelectedCategory("All");
+    setPriceRange("all");
+    setRatingFilter("all");
+    setSellerFilter("All");
   };
 
-  const handleSelectSuggestion = (product) => {
-    if (!product) return;
-    setSearchQuery(product.name);
-    setSelectedCategory(product.category);
-  };
 
   const handleAddToCart = (product) => {
     const alreadyInCart = cart.some((item) => item.id === product.id);
     if (alreadyInCart) {
-      showToast(`${product.name} is already in your cart`, "warning");
+      showToast(`${product.title} is already in your cart`, "warning");
       return;
     }
 
     setCart((prev) => [...prev, { ...product, quantity: 1 }]);
-    showToast(`${product.name} added to cart`, "success");
+    showToast(`${product.title} added to cart`, "success");
   };
 
   const handleRemoveFromCart = (productId) => {
@@ -161,37 +135,33 @@ function App() {
     setWishlist((prev) => {
       const exists = prev.some((item) => item.id === product.id);
       if (exists) {
-        showToast(`${product.name} removed from wishlist`, "info");
+        showToast(`${product.title} removed from wishlist`, "info");
         return prev.filter((item) => item.id !== product.id);
       }
-      showToast(`${product.name} added to wishlist`, "success");
+      showToast(`${product.title} added to wishlist`, "success");
       return [...prev, product];
     });
   };
 
   const handleProductView = (product) => {
     setRecentlyViewed((prev) => {
-      const next = [product, ...prev.filter((item) => item.id !== product.id)];
-      return next.slice(0, 5);
+      const exists = prev.some((item) => item.id === product.id);
+      if (exists) {
+        return [product, ...prev.filter((item) => item.id !== product.id)];
+      }
+      return [product, ...prev].slice(0, 8);
     });
   };
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
-  const wishlistCount = wishlist.length;
 
   return (
     <BrowserRouter>
       <div className="flex min-h-screen flex-col font-sans">
         <Header
-          products={products}
           cartCount={cartCount}
-          wishlistCount={wishlistCount}
-          categories={categories}
           searchQuery={searchQuery}
-          selectedCategory={selectedCategory}
           onSearchChange={handleSearchChange}
-          onCategoryChange={handleCategoryChange}
-          onSelectSuggestion={handleSelectSuggestion}
           user={user}
           onLogout={handleLogout}
         />
@@ -206,9 +176,13 @@ function App() {
                   loading={loading}
                   error={backendError}
                   searchQuery={searchQuery}
-                  selectedCategory={selectedCategory}
-                  onSearchChange={handleSearchChange}
-                  onCategoryChange={handleCategoryChange}
+                  priceRange={priceRange}
+                  ratingFilter={ratingFilter}
+                  sellerFilter={sellerFilter}
+                  uniqueSellers={uniqueSellers}
+                  onPriceChange={setPriceRange}
+                  onRatingChange={setRatingFilter}
+                  onSellerChange={setSellerFilter}
                   onResetFilters={handleResetFilters}
                   onAddToCart={handleAddToCart}
                   wishlist={wishlist}
@@ -230,9 +204,9 @@ function App() {
             />
             <Route path="/cart" element={<Cart cart={cart} onRemoveFromCart={handleRemoveFromCart} onUpdateQuantity={handleUpdateQuantity} />} />
             <Route path="/wishlist" element={<Wishlist wishlist={wishlist} onToggleWishlist={handleToggleWishlist} onAddToCart={handleAddToCart} />} />
+            <Route path="/orders" element={<Orders />} />
             <Route path="/seller" element={<Seller />} />
             <Route path="/login" element={<Login onLogin={handleLogin} user={user} />} />
-            <Route path="/contact" element={<Contact />} />
           </Routes>
         </main>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api/config";
+
 import { FiShoppingBag, FiTrendingUp, FiEye, FiEyeOff } from "react-icons/fi";
 
 function AuthCard({ type, onAuthSuccess }) {
@@ -67,30 +67,30 @@ function AuthCard({ type, onAuthSuccess }) {
     setLoading(true);
 
     try {
-      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
-      const body = mode === "login"
-        ? { email, password }
-        // For signup, we also pass role implicitly or it defaults to customer in mock backend.
-        // Wait, the backend doesn't take role in register. It assigns "customer".
-        // That's fine for mock, we will route them based on the card they used.
-        : { name, email, password };
+      // Mock Authentication
+      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network request
 
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        setError(payload.error || (mode === "login" ? "Login failed." : "Sign up failed."));
-        return;
+      let userData;
+      if (mode === "login") {
+        if (email === "test@gmail.com" && password === "123456" && isCustomer) {
+          userData = { id: 1, name: "Test User", email, role: "customer", token: "mock-jwt-token" };
+        } else if (email === "seller@gmail.com" && password === "123456" && !isCustomer) {
+          userData = { id: 2, name: "Test Seller", email, role: "seller", token: "mock-jwt-token" };
+        } else {
+          throw new Error("Invalid credentials.");
+        }
+      } else {
+        // Signup
+        userData = { 
+          id: Date.now(), 
+          name, 
+          email, 
+          role: !isCustomer ? "seller" : "customer", 
+          token: "mock-jwt-token" 
+        };
       }
 
-      // If user registered from seller card, assign role locally for demo
-      const assignedRole = mode === "signup" && !isCustomer ? "seller" : payload.user.role;
-      const userData = { ...payload.user, role: assignedRole, token: payload.token, remember: rememberMe };
+      userData.remember = rememberMe;
       
       setSuccess(mode === "login" ? "Login successful! Redirecting..." : "Account created! Redirecting...");
       
@@ -98,8 +98,8 @@ function AuthCard({ type, onAuthSuccess }) {
         onAuthSuccess(userData, type);
       }, 500);
       
-    } catch {
-      setError("Unable to connect. Please try again.");
+    } catch (err) {
+      setError(err.message || "Unable to connect. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -118,6 +118,17 @@ function AuthCard({ type, onAuthSuccess }) {
         <p className="mt-2 text-sm font-medium text-slate-500">
           {mode === "login" ? "Welcome back! Please enter your details." : "Create an account to get started."}
         </p>
+
+        {mode === "login" && (
+          <div className="mt-4 rounded-lg bg-slate-100 p-3 text-xs text-slate-600 ring-1 ring-inset ring-slate-200">
+            <strong>Mock Credentials for Testing:</strong><br />
+            {isCustomer ? (
+              <span>Email: <b>test@gmail.com</b> <br/> Pass: <b>123456</b></span>
+            ) : (
+              <span>Email: <b>seller@gmail.com</b> <br/> Pass: <b>123456</b></span>
+            )}
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col space-y-4 relative z-10">
@@ -254,6 +265,7 @@ function AuthCard({ type, onAuthSuccess }) {
 
 function Login({ onLogin, user }) {
   const navigate = useNavigate();
+  const [role, setRole] = useState("customer");
 
   useEffect(() => {
     if (user) {
@@ -277,22 +289,34 @@ function Login({ onLogin, user }) {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12 text-center">
+        <div className="mb-8 text-center">
           <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
             Welcome to GoCart
           </h1>
           <p className="mt-4 text-lg text-slate-600">
-            Choose your portal to continue.
+            Select your account type to continue.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 max-w-5xl mx-auto">
+        <div className="max-w-md mx-auto">
+          <div className="flex bg-slate-200 p-1 rounded-xl mb-6">
+            <button
+              onClick={() => setRole("customer")}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${role === "customer" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+            >
+              Customer
+            </button>
+            <button
+              onClick={() => setRole("seller")}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${role === "seller" ? "bg-white text-accent-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+            >
+              Seller
+            </button>
+          </div>
+
           <AuthCard 
-            type="customer" 
-            onAuthSuccess={handleAuthSuccess} 
-          />
-          <AuthCard 
-            type="seller" 
+            key={role}
+            type={role} 
             onAuthSuccess={handleAuthSuccess} 
           />
         </div>

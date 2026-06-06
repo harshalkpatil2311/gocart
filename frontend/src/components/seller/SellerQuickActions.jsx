@@ -7,7 +7,7 @@ const ACTIONS = [
   { id: 4, title: "Store Settings", desc: "Manage policies and details", icon: FiSettings, color: "text-slate-600", bg: "bg-slate-100" },
 ];
 
-function SellerQuickActions() {
+function SellerQuickActions({ onActionClick }) {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <h2 className="mb-4 text-lg font-bold text-slate-900">⚡ Quick Actions</h2>
@@ -16,6 +16,7 @@ function SellerQuickActions() {
           <button
             key={action.id}
             type="button"
+            onClick={() => onActionClick && onActionClick(action.title)}
             className="group flex w-full items-start gap-4 rounded-xl border border-slate-200 p-4 text-left transition-all hover:border-primary-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${action.bg} transition-transform group-hover:scale-110`}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../api/config";
+import { mockProducts } from "../data/mockProducts";
 
 /** Renders star icons for a rating value (0–5) */
 function StarRating({ rating }) {
@@ -27,25 +27,32 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
   const [pincode, setPincode] = useState("");
   const [deliveryStatus, setDeliveryStatus] = useState("Enter your pincode to check delivery availability.");
   const [deliveryOk, setDeliveryOk] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
 
   useEffect(() => {
-    async function fetchProduct() {
+    async function loadProduct() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/products/${id}`);
-        if (!response.ok) {
+        await new Promise(r => setTimeout(r, 400)); // simulate network delay
+        const foundProduct = mockProducts.find(p => p.id === Number(id));
+        if (!foundProduct) {
           throw new Error("Product not found.");
         }
-        const payload = await response.json();
-        setProduct(payload.product);
+        setProduct(foundProduct);
+        
+        setSimilarProducts(
+          mockProducts
+            .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id)
+            .slice(0, 4)
+        );
       } catch (err) {
         setError(err.message || "Unable to load product details.");
       } finally {
         setLoading(false);
       }
     }
-    fetchProduct();
+    loadProduct();
   }, [id]);
 
   useEffect(() => {
@@ -95,7 +102,6 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
   }
 
   const inWishlist = wishlist.some((item) => item.id === product.id);
-  const savings = product.oldPrice ? product.oldPrice - product.price : 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -105,7 +111,7 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
         <span>/</span>
         <Link to={`/?category=${product.category}`} className="hover:text-primary-600 hover:underline">{product.category}</Link>
         <span>/</span>
-        <span className="font-medium text-slate-900">{product.name}</span>
+        <span className="font-medium text-slate-900">{product.title}</span>
       </div>
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
@@ -113,7 +119,7 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
         <div className="relative overflow-hidden rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
           <img
             src={product.image}
-            alt={product.name}
+            alt={product.title}
             className="h-auto w-full object-contain"
             onError={(e) => { e.target.src = "https://placehold.co/800x800/f1f5f9/64748b?text=Image+Unavailable"; }}
           />
@@ -133,7 +139,7 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
               ))}
             </div>
             
-            <h1 className="mb-4 text-3xl font-black text-slate-900 sm:text-4xl">{product.name}</h1>
+            <h1 className="mb-4 text-3xl font-black text-slate-900 sm:text-4xl">{product.title}</h1>
             
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <StarRating rating={product.rating} />
@@ -147,12 +153,12 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
           <div className="mb-6 border-y border-slate-200 py-6">
             <div className="mb-2 flex items-baseline gap-3">
               <strong className="text-4xl font-black text-slate-900">₹{product.price.toLocaleString()}</strong>
-              {product.oldPrice && <span className="text-xl text-slate-500 line-through">₹{product.oldPrice.toLocaleString()}</span>}
+              {product.originalPrice && <span className="text-xl text-slate-500 line-through">₹{product.originalPrice.toLocaleString()}</span>}
               {product.discount > 0 && <span className="rounded-full bg-accent-100 px-3 py-1 text-sm font-bold text-accent-700">{product.discount}% OFF</span>}
             </div>
-            {savings > 0 && (
+            {product.originalPrice && product.originalPrice - product.price > 0 && (
               <p className="mb-1 text-sm font-bold text-success-600">
-                You save ₹{savings.toLocaleString()} on this item!
+                You save ₹{(product.originalPrice - product.price).toLocaleString()} on this item!
               </p>
             )}
             <p className="text-xs text-slate-500">Inclusive of all taxes</p>
@@ -231,7 +237,7 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
               <li><strong className="text-slate-900">Category:</strong> {product.category}</li>
               <li className="flex items-center gap-2">
                 <span className="text-success-500">✓</span>
-                {product.freeDelivery ? "Free delivery available on this product" : "Standard delivery charges apply"}
+                {product.delivery === "Free Delivery" ? "Free delivery available on this product" : `Standard delivery charges apply`}
               </li>
               <li className="flex items-center gap-2"><span className="text-primary-500">✓</span> 10-day replacement policy</li>
               <li className="flex items-center gap-2"><span className="text-primary-500">✓</span> 1 Year manufacturer warranty</li>
@@ -239,6 +245,27 @@ function ProductDetail({ onAddToCart, onToggleWishlist, wishlist, onProductView 
           </div>
         </div>
       </div>
+
+      {similarProducts.length > 0 && (
+        <div className="mt-16">
+          <h2 className="mb-6 text-2xl font-black text-slate-900">Similar Products You Might Like</h2>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {similarProducts.map((p) => (
+              <div key={p.id} className="group cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md" onClick={() => navigate(`/product/${p.id}`)}>
+                <div className="relative mb-4 aspect-square overflow-hidden rounded-lg bg-slate-50">
+                  <img src={p.image} alt={p.title} className="h-full w-full object-contain p-2 mix-blend-multiply transition-transform duration-500 group-hover:scale-110" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 line-clamp-2">{p.title}</h3>
+                  <div className="mt-2 flex items-center gap-1 text-sm">
+                    <span className="font-black text-slate-900">₹{p.price.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

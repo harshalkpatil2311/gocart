@@ -26,3 +26,13 @@
     @apply bg-slate-50 text-slate-800 antialiased selection:bg-primary-500 selection:text-white;
   }
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

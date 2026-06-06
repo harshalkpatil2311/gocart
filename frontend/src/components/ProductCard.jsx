@@ -16,15 +16,15 @@ function StarRating({ rating }) {
 }
 
 function ProductCard({ product, onAddToCart, onToggleWishlist, isWishlisted }) {
-  const savings = product.oldPrice ? product.oldPrice - product.price : 0;
+  const savings = product.originalPrice ? product.originalPrice - product.price : 0;
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-1 hover:shadow-lg">
+    <article className="group relative flex flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
       {/* Image Container */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 p-4 sm:aspect-square">
+      <div className="relative w-full overflow-hidden bg-slate-100 p-3 flex items-center justify-center h-[140px] sm:h-[150px] md:h-[160px] lg:h-[180px]">
         <img
           src={product.image}
-          alt={product.name}
+          alt={product.title}
           loading="lazy"
           className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
           onError={(e) => {
@@ -64,7 +64,7 @@ function ProductCard({ product, onAddToCart, onToggleWishlist, isWishlisted }) {
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col p-3">
         {/* Meta */}
         <div className="mb-2 flex items-center gap-2 text-[0.7rem] uppercase tracking-wider text-slate-500">
           <span className="rounded bg-slate-100 px-1.5 py-0.5 font-bold text-slate-600">{product.category}</span>
@@ -72,8 +72,8 @@ function ProductCard({ product, onAddToCart, onToggleWishlist, isWishlisted }) {
         </div>
 
         {/* Title */}
-        <h3 className="mb-1 line-clamp-2 text-sm font-bold leading-tight text-slate-900" title={product.name}>
-          {product.name}
+        <h3 className="mb-1 line-clamp-2 text-sm font-bold leading-tight text-slate-900" title={product.title}>
+          {product.title}
         </h3>
 
         {/* Rating */}
@@ -87,15 +87,15 @@ function ProductCard({ product, onAddToCart, onToggleWishlist, isWishlisted }) {
           {/* Price */}
           <div className="mb-1 flex items-baseline gap-2">
             <span className="text-lg font-black text-slate-900">₹{product.price.toLocaleString()}</span>
-            {product.oldPrice && (
-              <span className="text-xs text-slate-500 line-through">₹{product.oldPrice.toLocaleString()}</span>
+            {product.originalPrice && (
+              <span className="text-xs text-slate-500 line-through">₹{product.originalPrice.toLocaleString()}</span>
             )}
           </div>
           
           {/* Savings & Delivery */}
           <div className="mb-4 flex flex-col gap-1 text-[0.7rem] font-medium">
             {savings > 0 && <span className="text-success-600">Save ₹{savings.toLocaleString()}</span>}
-            {product.freeDelivery ? (
+            {product.delivery === "Free Delivery" ? (
               <span className="flex items-center gap-1 text-slate-600"><span className="text-success-500">✓</span> Free delivery</span>
             ) : (
               <span className="flex items-center gap-1 text-slate-500">📦 Paid delivery</span>
@@ -110,13 +110,13 @@ function ProductCard({ product, onAddToCart, onToggleWishlist, isWishlisted }) {
                 e.preventDefault();
                 onAddToCart();
               }}
-              className="flex-1 rounded-md bg-primary-600 py-2 text-sm font-bold text-white shadow-sm hover:bg-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              className="flex-1 rounded-md bg-primary-600 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
               Add
             </button>
             <Link
               to={`/product/${product.id}`}
-              className="flex-1 rounded-md bg-white py-2 text-center text-sm font-bold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
+              className="flex-1 rounded-md bg-white py-1.5 text-center text-xs font-bold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
             >
               View
             </Link>

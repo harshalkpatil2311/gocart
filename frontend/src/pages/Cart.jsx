@@ -4,20 +4,22 @@ function Cart({ cart, onRemoveFromCart, onUpdateQuantity }) {
   const navigate = useNavigate();
 
   const subtotal  = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const savings   = cart.reduce((s, i) => i.oldPrice ? s + (i.oldPrice - i.price) * i.quantity : s, 0);
+  const savings   = cart.reduce((s, i) => i.originalPrice ? s + (i.originalPrice - i.price) * i.quantity : s, 0);
   const delivery  = subtotal >= 499 ? 0 : 49;
   const total     = subtotal + delivery;
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   if (cart.length === 0) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white py-20 text-center shadow-sm">
-          <div className="mb-6 text-7xl">🛒</div>
-          <h2 className="mb-2 text-2xl font-bold text-slate-900">Your cart is empty</h2>
-          <p className="mb-8 max-w-md text-slate-600">Looks like you haven't added anything yet. Start exploring!</p>
-          <Link to="/" className="rounded-lg bg-primary-600 px-8 py-3.5 font-bold text-white shadow-sm transition-colors hover:bg-primary-500">
-            🛍️ Continue Shopping
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 min-h-[calc(100vh-10rem)] flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-lg w-full max-w-2xl">
+          <div className="mb-8 flex h-48 w-48 items-center justify-center rounded-full bg-slate-50">
+            <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-cart-2130356-1800917.png" alt="Empty Cart" className="h-40 w-40 object-contain opacity-80" />
+          </div>
+          <h2 className="mb-3 text-3xl font-black text-slate-900 tracking-tight">Your cart is feeling lonely</h2>
+          <p className="mb-8 max-w-md text-lg text-slate-600">Explore our massive catalog and find something you love to fill it up.</p>
+          <Link to="/" className="rounded-xl bg-primary-600 px-8 py-4 font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-primary-500 hover:shadow-primary-500/30">
+            Start Shopping Now
           </Link>
         </div>
       </div>
@@ -41,16 +43,16 @@ function Cart({ cart, onRemoveFromCart, onUpdateQuantity }) {
               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200">
                 <img
                   src={item.image}
-                  alt={item.name}
+                  alt={item.title}
                   className="h-full w-full object-contain"
                   onError={(e) => { e.target.src = "https://placehold.co/100x100/f1f5f9/64748b?text=?"; }}
                 />
               </div>
 
               <div className="flex-1">
-                <h3 className="mb-1 text-lg font-bold text-slate-900">{item.name}</h3>
+                <h3 className="mb-1 text-lg font-bold text-slate-900">{item.title}</h3>
                 <p className="mb-2 text-xs font-medium text-slate-500">Seller: {item.seller} • {item.category}</p>
-                {item.freeDelivery && (
+                {item.delivery === "Free Delivery" && (
                   <p className="mb-3 text-xs font-bold text-success-600">✓ Free Delivery</p>
                 )}
                 
@@ -85,9 +87,9 @@ function Cart({ cart, onRemoveFromCart, onUpdateQuantity }) {
 
               <div className="flex flex-col items-end sm:w-32">
                 <strong className="text-xl font-black text-slate-900">₹{(item.price * item.quantity).toLocaleString()}</strong>
-                {item.oldPrice && (
+                {item.originalPrice && (
                   <p className="mt-1 text-xs text-slate-500 line-through">
-                    ₹{(item.oldPrice * item.quantity).toLocaleString()}
+                    ₹{(item.originalPrice * item.quantity).toLocaleString()}
                   </p>
                 )}
               </div>

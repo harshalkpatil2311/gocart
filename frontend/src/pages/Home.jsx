@@ -1,272 +1,253 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import FilterSidebar from "../components/FilterSidebar";
-import CategorySection from "../components/CategorySection";
-import MobileFilterDrawer from "../components/MobileFilterDrawer";
-
-const OFFERS = [
-  { id: 1, cls: "bg-gradient-to-r from-blue-600 to-indigo-600", icon: "⚡", title: "Flash Deals", sub: "Up to 70% off today only" },
-  { id: 2, cls: "bg-gradient-to-r from-accent-600 to-fuchsia-600", icon: "🎁", title: "New Arrivals", sub: "Just dropped — shop fresh" },
-  { id: 3, cls: "bg-gradient-to-r from-orange-500 to-red-500", icon: "🔥", title: "Clearance Sale", sub: "Last chance prices" },
-];
 
 const TRUST = [
-  { icon: "🚚", title: "Free Delivery", desc: "On orders above ₹499" },
+  { icon: "🚚", title: "Free & Fast Delivery", desc: "On orders above ₹499" },
   { icon: "🔄", title: "Easy Returns", desc: "10-day hassle-free returns" },
   { icon: "🔒", title: "Secure Payment", desc: "100% safe & encrypted" },
   { icon: "🏆", title: "Top Brands", desc: "Genuine certified products" },
 ];
+
+const REVIEWS = [
+  { id: 1, name: "Rahul S.", text: "GoCart is my go-to! The delivery is always on time and products are genuine.", rating: 5 },
+  { id: 2, name: "Priya M.", text: "Incredible deals every day. I saved over ₹2,000 on my last smartphone purchase.", rating: 5 },
+  { id: 3, name: "Ankit K.", text: "The user interface is so smooth. Finding what I want takes seconds.", rating: 4 },
+  { id: 4, name: "Sneha V.", text: "Customer service resolved my return in a single day. Highly recommended!", rating: 5 },
+];
+
+function SectionRow({ title, desc, items, id, onAddToCart, onToggleWishlist, wishlist }) {
+  return (
+    <section id={id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6 lg:p-8">
+      <div className="mb-4 flex items-end justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 sm:text-2xl">{title}</h2>
+          <p className="mt-1 text-xs font-medium text-slate-500 sm:text-sm">{desc}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {items.map(product => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            onAddToCart={() => onAddToCart(product)}
+            onToggleWishlist={() => onToggleWishlist(product)}
+            isWishlisted={wishlist.some((i) => i.id === product.id)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function Home({
   products,
   loading,
   error,
   searchQuery,
-  selectedCategory,
-  onSearchChange, // Only used to pass down if needed, but search is global now
-  onCategoryChange,
+  priceRange,
+  ratingFilter,
+  sellerFilter,
+  uniqueSellers,
+  onPriceChange,
+  onRatingChange,
+  onSellerChange,
   onResetFilters,
   onAddToCart,
   wishlist,
   onToggleWishlist,
-  recentlyViewed,
 }) {
-  const navigate = useNavigate();
-  const [sortOption, setSortOption]     = useState("featured");
-  const [priceRange, setPriceRange]     = useState("all");
-  const [ratingFilter, setRatingFilter] = useState("all");
-  const [sellerFilter, setSellerFilter] = useState("All");
-  
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
-  const uniqueSellers = useMemo(
-    () => ["All", ...new Set(products.map((p) => p.seller))],
-    [products]
-  );
+  const [sortOption, setSortOption] = useState("featured");
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return products
-      .filter((p) => selectedCategory === "All" || p.category === selectedCategory)
       .filter((p) => sellerFilter === "All" || p.seller === sellerFilter)
       .filter((p) => {
-        if (priceRange === "all")     return true;
-        if (priceRange === "budget")  return p.price < 5000;
-        if (priceRange === "mid")     return p.price >= 5000 && p.price < 20000;
+        if (priceRange === "all") return true;
+        if (priceRange === "budget") return p.price < 5000;
+        if (priceRange === "mid") return p.price >= 5000 && p.price < 20000;
         if (priceRange === "premium") return p.price >= 20000;
         return true;
       })
       .filter((p) => ratingFilter === "all" || p.rating >= Number(ratingFilter))
-      .filter((p) => !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || p.seller.toLowerCase().includes(q))
+      .filter((p) => !q || p.title.toLowerCase().includes(q) || p.seller.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)))
       .sort((a, b) => {
-        if (sortOption === "low-to-high")  return a.price - b.price;
-        if (sortOption === "high-to-low")  return b.price - a.price;
+        if (sortOption === "low-to-high") return a.price - b.price;
+        if (sortOption === "high-to-low") return b.price - a.price;
         if (sortOption === "highest-rated") return b.rating - a.rating;
         if (sortOption === "best-discount") return b.discount - a.discount;
-        return a.id - b.id;
+        return a.id - b.id; // "featured" fallback
       });
-  }, [products, searchQuery, selectedCategory, priceRange, ratingFilter, sellerFilter, sortOption]);
+  }, [products, searchQuery, priceRange, ratingFilter, sellerFilter, sortOption]);
 
-  const handleOfferClick = (offerId) => {
-    onResetFilters();
-    setPriceRange("all");
-    setRatingFilter("all");
-    setSellerFilter("All");
-    
-    if (offerId === 1) setSortOption("best-discount");
-    else if (offerId === 2) setSortOption("featured");
-    else if (offerId === 3) setSortOption("low-to-high");
-    
-    setTimeout(() => {
-      document.getElementById("featured-products")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
+  const isFiltered = searchQuery || priceRange !== "all" || ratingFilter !== "all" || sellerFilter !== "All";
 
-  const bestSellers   = useMemo(() => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 4), [products]);
-  const topDeals      = useMemo(() => [...products].sort((a, b) => b.discount - a.discount).slice(0, 4), [products]);
-  const isFiltered    = searchQuery || selectedCategory !== "All" || priceRange !== "all" || ratingFilter !== "all" || sellerFilter !== "All";
+  const trending = useMemo(() => [...products].sort((a, b) => b.rating - a.rating).slice(0, 8), [products]);
+  const bestDeals = useMemo(() => [...products].sort((a, b) => b.discount - a.discount).slice(0, 8), [products]);
+  const popular = useMemo(() => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 8), [products]);
+  const recommended = useMemo(() => [...products].reverse().slice(0, 8), [products]);
+
+  // Exclude "All"
+  const featuredSellersList = useMemo(() => uniqueSellers.filter(s => s !== "All").slice(0, 4), [uniqueSellers]);
+
+
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 py-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
-        {error   && <div className="mb-8 rounded-md bg-red-50 p-4 text-red-700 ring-1 ring-inset ring-red-600/20">⚠️ {error}</div>}
-        {loading && !error && <div className="mb-8 rounded-md bg-blue-50 p-4 text-blue-700 ring-1 ring-inset ring-blue-600/20">⏳ Loading products from backend...</div>}
+        {error && <div className="mb-8 rounded-md bg-red-50 p-4 text-red-700 ring-1 ring-inset ring-red-600/20">⚠️ {error}</div>}
+        {loading && !error && <div className="mb-8 rounded-md bg-blue-50 p-4 text-blue-700 ring-1 ring-inset ring-blue-600/20">⏳ Loading marketplace data...</div>}
 
-        {/* ── Hero ──────────────────────────────────────── */}
-        {!isFiltered && (
-          <section className="mb-12 overflow-hidden rounded-2xl bg-slate-900 text-white shadow-xl lg:flex lg:h-[480px]">
-            <div className="flex flex-1 flex-col justify-center p-8 lg:p-16">
-              <span className="mb-4 inline-block w-fit rounded-full bg-slate-800 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-300">🛍️ India's #1 Smart Marketplace</span>
-              <h1 className="mb-6 text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
-                Shop <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-accent-400">Smarter,</span><br />Save Bigger
-              </h1>
-              <p className="mb-8 max-w-lg text-lg text-slate-300">
-                Discover thousands of products across top categories — from the latest mobiles to everyday essentials. Best prices, genuine products, fast delivery.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <button
-                  type="button"
-                  className="rounded-lg bg-primary-500 px-8 py-3.5 font-bold text-white shadow-sm transition-colors hover:bg-primary-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900"
-                  onClick={() => document.getElementById("featured-products")?.scrollIntoView({ behavior: "smooth" })}
-                >
-                  🛒 Shop Now
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-700 bg-slate-800 px-8 py-3.5 font-bold text-white transition-colors hover:bg-slate-700"
-                  onClick={() => navigate("/seller")}
-                >
-                  🏪 Sell on GoCart
-                </button>
-              </div>
-            </div>
+        {!isFiltered ? (
+          /* =========================================
+             HOME PAGE VIEW (Thematic Layout)
+             ========================================= */
+          <div className="space-y-12 pb-12">
+            
+            {/* 1. Hero Banner & Search Section */}
+            <section className="relative overflow-hidden rounded-3xl bg-slate-900 text-white shadow-2xl lg:flex lg:h-[450px]">
+              <div className="relative z-10 flex flex-1 flex-col justify-center p-8 lg:p-16">
+                <div className="space-y-8 max-w-2xl">
+                  <span className="inline-block rounded-full bg-slate-800/80 backdrop-blur-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-primary-300 ring-1 ring-white/20 shadow-sm">
+                    Welcome to GoCart
+                  </span>
+                  
+                  <h1 className="text-5xl font-black leading-tight tracking-tight sm:text-6xl lg:text-7xl">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-accent-400 drop-shadow-sm">Shop Smarter.</span><br />
+                    <span className="text-white">Live Better.</span>
+                  </h1>
+                  
+                  <div className="space-y-4">
+                    <p className="text-xl font-medium text-slate-200 leading-relaxed">
+                      Discover top products, trending deals, and trusted sellers — all in one modern marketplace.
+                    </p>
+                    <p className="text-base text-slate-400 leading-relaxed">
+                      Explore thousands of products across fashion, electronics, home essentials, beauty, grocery, and more.
+                    </p>
+                  </div>
 
-            <div className="relative hidden flex-1 lg:block">
-              <img 
-                src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=900&q=80" 
-                alt="Shopping" 
-                className="absolute inset-0 h-full w-full object-cover opacity-80"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-900 to-transparent"></div>
-            </div>
-          </section>
-        )}
-
-        {/* ── Offer Banners ─────────────────────────────── */}
-        {!isFiltered && (
-          <section className="mb-12">
-            <div className="grid gap-4 sm:grid-cols-3">
-              {OFFERS.map((o) => (
-                <div 
-                  key={o.id} 
-                  className={`flex cursor-pointer items-center gap-4 rounded-xl p-6 text-white shadow-md transition-transform hover:-translate-y-1 hover:shadow-lg ${o.cls}`}
-                  onClick={() => handleOfferClick(o.id)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <span className="text-4xl">{o.icon}</span>
-                  <div>
-                    <h3 className="text-xl font-bold">{o.title}</h3>
-                    <p className="text-sm font-medium opacity-90">{o.sub}</p>
+                  <div className="flex pt-2">
+                    <button
+                      className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-primary-600 px-10 py-4 font-black tracking-wide text-white shadow-xl ring-1 ring-inset ring-white/20 transition-all hover:-translate-y-1 hover:bg-primary-500 hover:shadow-primary-500/40 active:translate-y-0"
+                      onClick={() => { document.getElementById("trending-products")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                    >
+                      <span className="relative z-10">Start Shopping</span>
+                      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary-600 to-accent-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ── Best Sellers strip ────────────────────────── */}
-        {!isFiltered && bestSellers.length > 0 && (
-          <section className="mb-12">
-            <div className="mb-6 flex items-end justify-between">
-              <div>
-                <span className="text-sm font-bold uppercase tracking-wider text-accent-600">Most Popular</span>
-                <h2 className="text-3xl font-black text-slate-900">🏆 Best Sellers</h2>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {bestSellers.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={() => onAddToCart(product)}
-                  onToggleWishlist={() => onToggleWishlist(product)}
-                  isWishlisted={wishlist.some((i) => i.id === product.id)}
+              <div className="absolute inset-0 lg:relative lg:flex-1">
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent lg:hidden z-0"></div>
+                <img 
+                  src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80" 
+                  alt="Shopping" 
+                  className="h-full w-full object-cover object-right"
                 />
-              ))}
-            </div>
-          </section>
-        )}
+              </div>
+            </section>
 
-        {/* ── Marketplace Layout (Sidebar + Grid) ──────────── */}
-        <section id="featured-products">
-          <div className="mb-6 flex items-end justify-between">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900">
-                {selectedCategory === "All" ? "Explore Marketplace" : selectedCategory}
-              </h2>
-              <p className="mt-1 text-slate-600">
-                {isFiltered
-                  ? `${filteredProducts.length} result${filteredProducts.length !== 1 ? "s" : ""} found`
-                  : "Discover everything in one place"}
-              </p>
-            </div>
+            {/* 2. Trending Products */}
+            <SectionRow id="trending-products" title="Trending Now" desc="The highest rated products everyone is talking about" items={trending} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} wishlist={wishlist} />
+
+            {/* 3. Best Deals */}
+            <SectionRow id="best-deals" title="Best Deals" desc="Massive discounts you simply cannot miss" items={bestDeals} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} wishlist={wishlist} />
+
+            {/* 4. Popular Products */}
+            <SectionRow id="popular-products" title="Popular Products" desc="Most reviewed items trusted by thousands" items={popular} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} wishlist={wishlist} />
+
+            {/* 5. Recommended Products */}
+            <SectionRow id="recommended-products" title="Recommended For You" desc="Handpicked selections based on your browsing" items={recommended} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} wishlist={wishlist} />
+
+            {/* 6. Featured Sellers */}
+            <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+              <h2 className="mb-6 text-2xl font-black text-slate-900 text-center">Featured Sellers</h2>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {featuredSellersList.map((seller, idx) => (
+                  <div key={idx} className="flex cursor-pointer flex-col items-center rounded-2xl bg-slate-50 p-6 text-center ring-1 ring-slate-200 transition-all hover:-translate-y-1 hover:shadow-md hover:ring-primary-300">
+                    <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-accent-100 text-3xl shadow-inner">
+                      🏪
+                    </div>
+                    <h3 className="font-bold text-slate-900">{seller}</h3>
+                    <p className="mt-1 text-xs font-medium text-slate-500">Official Partner</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 7. Customer Reviews */}
+            <section className="rounded-3xl bg-slate-900 p-8 text-white shadow-xl">
+              <div className="mb-8 text-center">
+                <h2 className="text-2xl font-black">What Our Customers Say</h2>
+                <p className="text-slate-400">Join millions of satisfied shoppers</p>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {REVIEWS.map(r => (
+                  <div key={r.id} className="rounded-2xl bg-slate-800 p-6 ring-1 ring-white/10">
+                    <div className="mb-3 flex text-accent-400">
+                      {[...Array(r.rating)].map((_, i) => <span key={i}>★</span>)}
+                    </div>
+                    <p className="mb-4 text-sm leading-relaxed text-slate-300">"{r.text}"</p>
+                    <p className="font-bold text-slate-100">- {r.name}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* 8. Trust Section */}
+            <section className="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+              <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                {TRUST.map((t, idx) => (
+                  <div key={idx} className="flex flex-col items-center text-center">
+                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-3xl shadow-inner">
+                      {t.icon}
+                    </div>
+                    <h4 className="mb-2 text-lg font-bold text-slate-900">{t.title}</h4>
+                    <p className="text-sm text-slate-600">{t.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
           </div>
-
-          {/* Category Strip (Horizontal) */}
-          <CategorySection 
-            selectedCategory={selectedCategory} 
-            onCategoryChange={onCategoryChange} 
-          />
-
-          <div className="flex flex-col lg:flex-row lg:gap-8">
-            {/* Desktop Sidebar */}
+        ) : (
+          /* =========================================
+             PRODUCT LISTING VIEW (Filters Active)
+             ========================================= */
+          <div id="product-grid" className="flex flex-col lg:flex-row gap-8">
+            
+            {/* Sidebar Filters */}
             <FilterSidebar 
-              categories={["All"]} // Not used here as we have CategorySection, but passing for prop safety
-              selectedCategory={selectedCategory}
-              onCategoryChange={onCategoryChange}
               priceRange={priceRange}
-              onPriceChange={setPriceRange}
+              onPriceChange={onPriceChange}
               ratingFilter={ratingFilter}
-              onRatingChange={setRatingFilter}
-              uniqueSellers={uniqueSellers}
+              onRatingChange={onRatingChange}
               sellerFilter={sellerFilter}
-              onSellerChange={setSellerFilter}
-              onResetFilters={() => {
-                onResetFilters();
-                setPriceRange("all");
-                setRatingFilter("all");
-                setSellerFilter("All");
-                setSortOption("featured");
-              }}
+              onSellerChange={onSellerChange}
+              uniqueSellers={uniqueSellers}
+              onResetFilters={onResetFilters}
             />
 
-            {/* Mobile Filter Drawer */}
-            <MobileFilterDrawer 
-              isOpen={mobileFiltersOpen}
-              onClose={() => setMobileFiltersOpen(false)}
-              categories={["All"]} 
-              selectedCategory={selectedCategory}
-              onCategoryChange={onCategoryChange}
-              priceRange={priceRange}
-              onPriceChange={setPriceRange}
-              ratingFilter={ratingFilter}
-              onRatingChange={setRatingFilter}
-              uniqueSellers={uniqueSellers}
-              sellerFilter={sellerFilter}
-              onSellerChange={setSellerFilter}
-              onResetFilters={() => {
-                onResetFilters();
-                setPriceRange("all");
-                setRatingFilter("all");
-                setSellerFilter("All");
-                setSortOption("featured");
-              }}
-            />
-
-            {/* Products main area */}
+            {/* Main Listing Area */}
             <div className="flex-1">
               
-              {/* Sort Bar & Mobile Filter Trigger */}
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                <button 
-                  onClick={() => setMobileFiltersOpen(true)}
-                  className="flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 lg:hidden"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-                  </svg>
-                  Filters
-                </button>
+              {/* Header & Sort Bar */}
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <div>
+                  <h1 className="text-2xl font-black text-slate-900">
+                    {searchQuery ? `Search results for "${searchQuery}"` : "All Products"}
+                  </h1>
+                  <p className="text-sm text-slate-500 mt-1">Showing {filteredProducts.length} products</p>
+                </div>
 
-                <div className="flex items-center gap-3 ml-auto">
-                  <span className="text-sm font-medium text-slate-500">Sort by:</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Sort by:</span>
                   <select 
                     value={sortOption} 
                     onChange={(e) => setSortOption(e.target.value)}
-                    className="rounded-md border-0 bg-slate-50 py-2 pl-3 pr-8 text-sm font-medium text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-primary-600"
+                    className="rounded-lg border-0 bg-slate-100 py-2.5 pl-4 pr-10 text-sm font-bold text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-primary-600"
                   >
                     <option value="featured">Featured</option>
                     <option value="low-to-high">Price: Low to High</option>
@@ -277,44 +258,27 @@ function Home({
                 </div>
               </div>
 
-              {/* Loading skeleton */}
-              {loading && (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                    <div key={n} className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="aspect-square w-full animate-pulse rounded-lg bg-slate-200"></div>
-                      <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200"></div>
-                      <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200"></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Empty state */}
+              {/* Empty State */}
               {!loading && filteredProducts.length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 py-16 text-center">
-                  <div className="mb-4 text-6xl">🔍</div>
-                  <h3 className="mb-2 text-xl font-bold text-slate-900">No products found</h3>
-                  <p className="mb-6 max-w-md text-slate-600">Try adjusting your search or filters to find what you're looking for.</p>
+                <div className="flex flex-col items-center justify-center rounded-2xl bg-white py-20 text-center shadow-sm ring-1 ring-slate-200">
+                  <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-slate-100 text-5xl shadow-inner">
+                    🔍
+                  </div>
+                  <h3 className="mb-2 text-2xl font-black text-slate-900">No matches found</h3>
+                  <p className="mb-8 max-w-md text-slate-600">We couldn't find any products matching your current filters. Try adjusting them or clearing the filters.</p>
                   <button
                     type="button"
-                    className="rounded-md bg-primary-600 px-6 py-2.5 font-bold text-white hover:bg-primary-500"
-                    onClick={() => {
-                      onResetFilters();
-                      setPriceRange("all");
-                      setRatingFilter("all");
-                      setSellerFilter("All");
-                      setSortOption("featured");
-                    }}
+                    className="rounded-xl bg-primary-600 px-8 py-3 font-bold text-white shadow-sm hover:bg-primary-500"
+                    onClick={onResetFilters}
                   >
                     Clear All Filters
                   </button>
                 </div>
               )}
 
-              {/* Product grid */}
+              {/* Product Grid */}
               {!loading && filteredProducts.length > 0 && (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                   {filteredProducts.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -329,7 +293,7 @@ function Home({
 
             </div>
           </div>
-        </section>
+        )}
 
       </div>
     </div>
